@@ -2,6 +2,7 @@ import { ExpressionResultWidget } from "@/codemirror/widgets/ExpressionResultWid
 import { pluginEventBus } from "@/eventbus/PluginEventBus";
 import { StatefulPipeline } from "@/pipelines/definition/StatefulPipeline";
 import { SharedCommentsRemovalStage } from "@/pipelines/stages/expression/CommentsRemovalStage";
+import { SharedExplicitModeRemovalStage } from "@/pipelines/stages/expression/ExplicitModeRemovalStage";
 import { SharedExtractInlineSolveStage } from "@/pipelines/stages/expression/ExtractInlineSolveState";
 import { SharedMarkdownRemovalStage } from "@/pipelines/stages/expression/MarkdownRemovalStage";
 import { SharedMathJaxRemovalStage } from "@/pipelines/stages/expression/MathJaxRemovalStage";
@@ -74,6 +75,7 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 			.addStage(SharedExtractInlineSolveStage)
 			.addStage(this.previousResultSubstitutionStage)
 			.addStage(this.variableProcessingStage)
+			.addStage(SharedExplicitModeRemovalStage)
 			.addStage(SharedVariableAssignRemovalStage);
 
 		// Setup the post processor pipeline
@@ -204,14 +206,15 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 				const state: IExpressionProcessorState = {
 					lineNumber: line.number,
 					originalLineText: expression,
+					isAllowedExplicitModeExpression: false,
 				};
 
-				// logger.debug("Before Expression Processor:", state, expression);
+				//logger.debug("Before Expression Processor:", state, expression);
 				expression = this.expressionProcesser.process(
 					state,
 					expression
 				);
-				// logger.debug("After Expression Processor:", state, expression);
+				//logger.debug("After Expression Processor:", state, expression);
 
 				// The line is valid and decoration can be provided.
 				const decoration = this.provideDecoration(state, expression);
@@ -274,20 +277,18 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 		state: IExpressionProcessorState,
 		expression: string
 	) {
-		let isExplicitlyDefinedSentence = false;
+		// If explicit mode is enabled then only process allowed expressions
+		if (
+			this.userSettings.engine.explicitMode &&
+			!state.isAllowedExplicitModeExpression
+		) {
+			// logger.debug(
+			// 	"MarkdownEditorViewPlugin.provideDecoration: This is not an allowed explicit mode expression.",
+			// 	expression,
+			// 	state
+			// );
 
-		// When explicit mode is enabled the sentence will end with = sign.
-		// This needs to be removed in order for grammars to match.
-		// TODO: Convert this into a expression processor stage
-		if (this.userSettings.engine.explicitMode) {
-			if (expression.trimEnd().endsWith("=")) {
-				expression = expression
-					.substring(0, expression.length - 1)
-					.trimEnd();
-				isExplicitlyDefinedSentence = true;
-			} else {
-				return undefined;
-			}
+			return undefined;
 		}
 
 		// Initial implementation will show the first valid result from available providers.
@@ -308,14 +309,6 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 			: result.trim();
 
 		if (sentenceTrimmed.toLowerCase() === resultTrimmed.toLowerCase()) {
-			return undefined;
-		}
-
-		// If we're in explicit mode, we should only show the result if it was defined explicitly `=`
-		if (
-			this.userSettings.engine.explicitMode &&
-			!isExplicitlyDefinedSentence
-		) {
 			return undefined;
 		}
 
