@@ -95,7 +95,7 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 			.addStage(this.variableProcessingStage)
 			.addStage(SharedExplicitModeRemovalStage)
 			.addStage(SharedVariableAssignRemovalStage);
-		
+
 		// Setup the post processor pipeline
 		this.resultProcessor = new StatefulPipeline<
 			[IProvider, AnyResult],
