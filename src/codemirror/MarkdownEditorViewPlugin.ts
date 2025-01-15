@@ -50,6 +50,14 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 		IExpressionProcessorState,
 		string
 	>;
+	private expressionProcesserArray: StatefulPipeline<
+		IExpressionProcessorState,
+		string[]
+	>;
+	private expressionProcesserFinal: StatefulPipeline<
+		IExpressionProcessorState,
+		string
+	>;
 	private resultProcessor: StatefulPipeline<[IProvider, AnyResult], string>;
 	private variableProcessingStage: VariableProcessingStage;
 	private previousResultSubstitutionStage: PreviousResultSubstitutionStage;
@@ -72,12 +80,22 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 			.addStage(SharedMarkdownRemovalStage)
 			.addStage(SharedCommentsRemovalStage)
 			.addStage(SharedMathJaxRemovalStage)
-			.addStage(SharedExtractInlineSolveStage)
+
+		this.expressionProcesserArray = new StatefulPipeline<
+			IExpressionProcessorState,
+			string[]
+		>()
+			.addStage(SharedExtractInlineSolveStage);
+		
+		this.expressionProcesserFinal = new StatefulPipeline<
+			IExpressionProcessorState,
+			string
+		>()	
 			.addStage(this.previousResultSubstitutionStage)
 			.addStage(this.variableProcessingStage)
 			.addStage(SharedExplicitModeRemovalStage)
 			.addStage(SharedVariableAssignRemovalStage);
-
+		
 		// Setup the post processor pipeline
 		this.resultProcessor = new StatefulPipeline<
 			[IProvider, AnyResult],
@@ -216,28 +234,40 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 				);
 				//logger.debug("After Expression Processor:", state, expression);
 
-				// The line is valid and decoration can be provided.
-				const decoration = this.provideDecoration(state, expression);
+				let inlineExpressions = this.expressionProcesserArray.process(
+					state,
+					[expression]
+				);
 
-				if (decoration) {
-					if (state.isInlineSolve && state.inlineSolveIndex) {
-						// Result is displayed at the end of the inline solve position
-						const inlineSolvePosition =
-							line.from + // Start of the line
-							3 + // Unaccounted inline solve characters s``
-							state.inlineSolveIndex + // Position of the inline solve
-							expression.length; // Length of the inline solve
+				inlineExpressions.forEach((inlineExpression, index) => {
+					expression = this.expressionProcesserFinal.process(
+						state,
+						inlineExpression
+					);
 
-						builder.add(
-							inlineSolvePosition,
-							inlineSolvePosition,
-							decoration
-						);
-					} else {
-						// Result is displayed at the end of the line.
-						builder.add(line.to, line.to, decoration);
+					// The line is valid and decoration can be provided.
+					const decoration = this.provideDecoration(state, expression);
+
+					if (decoration) {
+						if (state.isInlineSolve && state.inlineSolveIndices) {
+							// Result is displayed at the end of the inline solve position
+							const inlineSolvePosition =
+								line.from + // Start of the line
+								3 + // Unaccounted inline solve characters s``
+								state.inlineSolveIndices[index] + // Position of the inline solve
+								inlineExpression.length; // Length of the inline solve
+
+							builder.add(
+								inlineSolvePosition,
+								inlineSolvePosition,
+								decoration
+							);
+						} else {
+							// Result is displayed at the end of the line.
+							builder.add(line.to, line.to, decoration);
+						}
 					}
-				}
+				})
 
 				seenLines.add(line.number);
 				nextLineTextOffset += lineTextRaw.length;
