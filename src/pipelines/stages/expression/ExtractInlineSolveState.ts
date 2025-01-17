@@ -13,7 +13,7 @@ export class ExtractInlineSolveStage extends BaseStatefulPipelineStage<
 		request: string[]
 	): string[] {
 		// IMPORTANT: We match the raw input expression and not the processed expression because
-		// 	          in cases where their is markdown elments e.g.lists, qouotes, etc...
+		// 	          in cases where there are markdown elements e.g.lists, quotes, etc...
 		const matches: string[] = [];
 		const indices: number[] = [];
 		for (const match of state.originalLineText.matchAll(this.inlineSolveRegex)) {

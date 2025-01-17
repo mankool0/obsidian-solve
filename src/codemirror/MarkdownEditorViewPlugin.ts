@@ -241,7 +241,8 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 					[expression]
 				);
 
-				inlineExpressions.forEach((inlineExpression, index) => {
+				for (let i = 0; i < inlineExpressions.length; i++) {
+					const inlineExpression = inlineExpressions[i]
 					expression = this.expressionProcesserFinal.process(
 						state,
 						inlineExpression
@@ -249,28 +250,29 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 
 					// The line is valid and decoration can be provided.
 					const decoration = this.provideDecoration(state, expression);
-
-					if (decoration) {
-						if (state.isInlineSolve && state.inlineSolveIndices) {
-							// Result is displayed at the end of the inline solve position
-							const inlineSolvePosition =
-								line.from + // Start of the line
-								3 + // Unaccounted inline solve characters s``
-								state.inlineSolveIndices[index] + // Position of the inline solve
-								padding + // Length of removed whitespace
-								inlineExpression.length; // Length of the inline solve
-
-							builder.add(
-								inlineSolvePosition,
-								inlineSolvePosition,
-								decoration
-							);
-						} else {
-							// Result is displayed at the end of the line.
-							builder.add(line.to, line.to, decoration);
-						}
+					if (!decoration) {
+						continue;
 					}
-				})
+
+					if (state.isInlineSolve && state.inlineSolveIndices) {
+						// Result is displayed at the end of the inline solve position
+						const inlineSolvePosition =
+							line.from + // Start of the line
+							3 + // Unaccounted inline solve characters s``
+							state.inlineSolveIndices[i] + // Position of the inline solve
+							padding + // Length of removed whitespace
+							inlineExpression.length; // Length of the inline solve
+
+						builder.add(
+							inlineSolvePosition,
+							inlineSolvePosition,
+							decoration
+						);
+					} else {
+						// Result is displayed at the end of the line.
+						builder.add(line.to, line.to, decoration);
+					}
+				}
 
 				seenLines.add(line.number);
 				nextLineTextOffset += lineTextRaw.length;
