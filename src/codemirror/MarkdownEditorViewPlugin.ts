@@ -201,7 +201,9 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 
 				const line = view.state.doc.lineAt(linePosition);
 
-				let expression = line.text.trim();
+				let expression = line.text.trimStart();
+				let padding = line.text.length - expression.length;
+				expression = expression.trimEnd();
 
 				// Skip blank lines
 				if (!expression || expression.length === 0) {
@@ -255,6 +257,7 @@ export class MarkdownEditorViewPlugin implements PluginValue {
 								line.from + // Start of the line
 								3 + // Unaccounted inline solve characters s``
 								state.inlineSolveIndices[index] + // Position of the inline solve
+								padding + // Length of removed whitespace
 								inlineExpression.length; // Length of the inline solve
 
 							builder.add(
