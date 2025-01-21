@@ -18,7 +18,7 @@ export class ExtractInlineSolveStage extends BaseStatefulPipelineStage<
 		const indices: number[] = [];
 		for (const match of state.originalLineText.matchAll(this.inlineSolveRegex)) {
 			matches.push(match[1]);
-			indices.push(match.index);
+			indices.push(match.index!);
 		}
 
 		if (matches.length > 0) {
